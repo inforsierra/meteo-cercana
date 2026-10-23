@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b5d1e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Meteo cercana">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<title>Meteo cercana</title>
+<style>
+  :root{--g:#0b5d1e;--g2:#12862b;--bg:#f2f5f2;--card:#fff;--tx:#16281a;--mut:#5c6b60;--line:#e3ebe4}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,Roboto,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--tx);
+       padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  header{background:linear-gradient(135deg,var(--g),var(--g2));color:#fff;padding:16px 16px 14px;position:sticky;top:0;z-index:5}
+  header h1{margin:0;font-size:19px}
+  header p{margin:4px 0 0;font-size:12px;opacity:.9}
+  main{padding:14px;max-width:640px;margin:0 auto}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px;border:0;border-radius:14px;
+       background:var(--g);color:#fff;font-size:17px;font-weight:600;cursor:pointer}
+  .btn:active{transform:scale(.99)}
+  .btn.sec{background:#fff;color:var(--g);border:1.5px solid var(--g)}
+  .row{display:flex;gap:8px;margin-top:10px}
+  .row input{flex:1;min-width:0;padding:12px;border:1px solid #cdd6cf;border-radius:12px;font-size:15px;background:#fff}
+  .muted{color:var(--mut);font-size:12.5px;margin:10px 2px 0;line-height:1.45}
+  .card{background:var(--card);border-radius:16px;padding:14px;margin-top:14px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  .card h2{margin:0 0 2px;font-size:17px}
+  .card .sub{color:var(--mut);font-size:12.5px;margin-bottom:10px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .kpi{background:#f7faf7;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .kpi .lbl{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.03em}
+  .kpi .val{font-size:20px;font-weight:700;margin-top:2px}
+  .kpi .val small{font-size:13px;font-weight:600;color:var(--mut)}
+  .stlist{margin-top:12px}
+  .st{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;border:1px solid var(--line);
+      border-radius:12px;margin-bottom:8px;background:#fff;cursor:pointer}
+  .st.sel{border-color:var(--g);background:#eef7ef}
+  .st .id{font-weight:700}
+  .st .d{color:var(--mut);font-size:12.5px}
+  .badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:999px;background:#e8f2e9;color:var(--g)}
+  .err{background:#fdecea;color:#8a1c12;border:1px solid #f5c6c0;border-radius:12px;padding:11px;margin-top:12px;font-size:13.5px}
+  .foot{text-align:center;color:var(--mut);font-size:11.5px;padding:16px 0 26px}
+  .spin{width:16px;height:16px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;
+        animation:sp .8s linear infinite;display:inline-block}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .chip{font-size:12.5px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#f7faf7;color:var(--tx)}
+  .chip.on{background:var(--g);color:#fff;border-color:var(--g)}
+  .seg{display:flex;gap:6px;margin-bottom:10px}
+  .seg .chip{flex:1;text-align:center;justify-content:center;display:block}
+  canvas{width:100%;display:block}
+  .legend{color:var(--mut);font-size:12px;margin-top:6px;display:flex;justify-content:space-between}
+  .install{position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));background:#16281a;color:#fff;
+           border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.4;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:20;
+           display:none;align-items:center;gap:10px}
+  .install b{color:#7ddc94}
+  .install button{background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <h1>🟢 Meteo cercana</h1>
+  <p>Tu ubicación → estación Weather Underground más próxima</p>
+</header>
+<main>
+  <button class="btn" id="gps">
+    <span id="gpsico">📡</span><span id="gpstx">Usar mi ubicación (GPS)</span>
+  </button>
+
+  <div class="row">
+    <input id="lat" inputmode="decimal" placeholder="lat (ej. 37.9042)">
+    <input id="lon" inputmode="decimal" placeholder="lon (ej. -6.5531)">
+  </div>
+  <button class="btn sec" id="manual" style="margin-top:10px">Buscar por coordenadas</button>
+
+  <div class="row">
+    <input id="sid" placeholder="o busca por ID de estación (ej. IARACE11)">
+    <button class="btn sec" id="byid" style="width:auto;padding:0 16px">Ver</button>
+  </div>
+
+  <div class="muted" id="hint">
+    Si pulsas GPS y el navegador lo bloquea, la geolocalización solo funciona en
+    <b>https://</b>. Usa las coordenadas a mano como alternativa.
+  </div>
+
+  <div id="out"></div>
+  <div class="foot">Datos: Weather Underground (PWS). Hecho por Eva 🟢</div>
+</main>
+
+<div class="install" id="install">
+  <span>📲 En iPhone: toca <b>Compartir</b> → <b>Añadir a pantalla de inicio</b> para tenerla como app.</span>
+  <button id="installx">✕</button>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const out = $('#out');
+const WU = 'https://api.weather.com';
+const KEY = '6532d6454b8aa370768e63d6ba5a832e';
+
+const METRICS = [
+  {id:'temp',   label:'Temperatura', unit:'°C',   color:'#e0533d', cur:o=>o.metric.temp,        d:o=>o.metric.tempAvg},
+  {id:'hum',    label:'Humedad',     unit:'%',    color:'#2b7fd4', cur:o=>o.humidity,           d:o=>o.humidityAvg},
+  {id:'dewpt',  label:'Punto rocío', unit:'°C',   color:'#8a5cd4', cur:o=>o.metric.dewpt,       d:o=>o.metric.dewptAvg},
+  {id:'press',  label:'Presión',     unit:'hPa',  color:'#5c6b60', cur:o=>o.metric.pressure,    d:o=>o.metric.pressureMax},
+  {id:'wind',   label:'Viento',      unit:'m/s',  color:'#0b8f6f', cur:o=>o.metric.windSpeed,   d:o=>o.metric.windspeedAvg},
+  {id:'precip', label:'Lluvia',      unit:'mm',   color:'#1f6feb', cur:o=>o.metric.precipRate,  d:o=>o.metric.precipTotal},
+  {id:'uv',     label:'UV',          unit:'',     color:'#b8860b', cur:o=>o.uv,                 d:o=>o.uvHigh},
+  {id:'rad',    label:'Radiación',   unit:'W/m²', color:'#d98218', cur:o=>o.solarRadiation,     d:o=>o.solarRadiationHigh}
+];
+
+let CACHE = {cur:null, day:null, week:null};
+let SEL = {metric:'temp', range:'24h'};
+let STA = null; // {id,name,distanceKm}
+
+function fmt(v, suf){ return (v===null||v===undefined||v==='') ? '—' : v + (suf||''); }
+function num(v){ return (typeof v === 'number' && isFinite(v)) ? v : null; }
+function r1(v){ return Math.round(v*10)/10; }
+function parseTs(s){ if(!s) return null; const d = new Date(String(s).replace(' ','T')); return isNaN(d)? null : d; }
+function hhmm(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function ddmm(d){ return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); }
+
+async function jget(url){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return await r.json();
+}
+async function near(lat, lon){
+  const j = await jget(`${WU}/v3/location/near?geocode=${encodeURIComponent(lat)},${encodeURIComponent(lon)}&product=pws&format=json&apiKey=${KEY}`);
+  const L = j.location || {};
+  const ids = L.stationId || [];
+  return ids.map((id,i)=>({id, name:(L.stationName||[])[i]||'', distanceKm:(L.distanceKm||[])[i],
+                           lat:(L.latitude||[])[i], lon:(L.longitude||[])[i], qc:(L.qcStatus||[])[i]}));
+}
+async function current(id){
+  const j = await jget(`${WU}/v2/pws/observations/current?stationId=${encodeURIComponent(id)}&format=json&units=m&apiKey=${KEY}`);
+  return (j.observations||[])[0] || null;
+}
+async function dayObs(id){
+  const j = await jget(`${WU}/v2/pws/observations/all/1day?stationId=${encodeURIComponent(id)}&format=json&units=m&apiKey=${KEY}`);
+  return j.observations||[];
+}
+async function weekObs(id){
+  const j = await jget(`${WU}/v2/pws/dailysummary/7day?stationId=${encodeURIComponent(id)}&format=json&units=m&apiKey=${KEY}`);
+  return j.summaries||[];
+}
+
+function err(t){ out.innerHTML = `<div class="err">${t}</div>`; }
+
+function card(st, obs){
+  const m = obs.metric || {};
+  const dir = obs.winddir!=null ? obs.winddir+'°' : '—';
+  return `
+  <div class="card">
+    <h2>${st.id} ${st.distanceKm!=null ? `<span class="badge">${st.distanceKm} km</span>` : ''}</h2>
+    <div class="sub">${obs.neighborhood || st.name || ''} · act. ${obs.obsTimeLocal || '—'} · ${obs.softwareType||''}</div>
+    <div class="grid">
+      <div class="kpi"><div class="lbl">Temperatura</div><div class="val">${fmt(m.temp)}<small> °C</small></div></div>
+      <div class="kpi"><div class="lbl">Sensación</div><div class="val">${fmt(m.heatIndex)}<small> °C</small></div></div>
+      <div class="kpi"><div class="lbl">Humedad</div><div class="val">${fmt(obs.humidity)}<small> %</small></div></div>
+      <div class="kpi"><div class="lbl">Punto de rocío</div><div class="val">${fmt(m.dewpt)}<small> °C</small></div></div>
+      <div class="kpi"><div class="lbl">Presión</div><div class="val">${fmt(m.pressure)}<small> hPa</small></div></div>
+      <div class="kpi"><div class="lbl">Viento</div><div class="val">${fmt(m.windSpeed)}<small> m/s · ${dir}</small></div></div>
+      <div class="kpi"><div class="lbl">Racha</div><div class="val">${fmt(m.windGust)}<small> m/s</small></div></div>
+      <div class="kpi"><div class="lbl">UV</div><div class="val">${fmt(obs.uv)}</div></div>
+      <div class="kpi"><div class="lbl">Radiación</div><div class="val">${fmt(obs.solarRadiation)}<small> W/m²</small></div></div>
+      <div class="kpi"><div class="lbl">Lluvia</div><div class="val">${fmt(m.precipRate)}<small> mm/h</small></div></div>
+    </div>
+  </div>`;
+}
+
+function listCard(stations){
+  return `<div class="card stlist"><h2 style="font-size:15px">Estaciones cercanas</h2>
+    <div class="sub">Toca una para cargar sus datos</div>
+    ${stations.map((s,i)=>`<div class="st ${i===0?'sel':''}" data-id="${s.id}">
+        <div><div class="id">${s.id}</div><div class="d">${s.name||''}</div></div>
+        <div class="d">${s.distanceKm!=null?s.distanceKm+' km':'—'}</div>
+      </div>`).join('')}
+  </div>`;
+}
+
+function chartsCard(){
+  const chips = METRICS.map(m=>`<button class="chip ${SEL.metric===m.id?'on':''}" data-m="${m.id}">${m.label}</button>`).join('');
+  return `<div class="card">
+    <h2 style="font-size:15px">Gráficos</h2>
+    <div class="sub" id="chsub">—</div>
+    <div class="seg">
+      <button class="chip ${SEL.range==='24h'?'on':''}" data-r="24h">Últimas 24 h</button>
+      <button class="chip ${SEL.range==='7d'?'on':''}" data-r="7d">7 días</button>
+    </div>
+    <div class="chips">${chips}</div>
+    <canvas id="chart" height="150"></canvas>
+    <div class="legend"><span id="chmin">—</span><span id="chnow">—</span><span id="chmax">—</span></div>
+  </div>`;
+}
+
+function seriesFor(range, metric){
+  const arr = (range==='24h') ? (CACHE.day||[]) : (CACHE.week||[]);
+  return arr.map(o=>({t:parseTs(o.obsTimeLocal), v:num(metric.d(o))})).filter(p=>p.t);
+}
+
+function drawChart(){
+  const cv = $('#chart'); if(!cv) return;
+  const dpr = window.devicePixelRatio||1;
+  const w = cv.clientWidth || 320, h = 150;
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr); cv.style.height = h+'px';
+  const g = cv.getContext('2d');
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,h);
+
+  const m = METRICS.find(x=>x.id===SEL.metric);
+  const data = seriesFor(SEL.range, m);
+  const padL=40, padR=8, padT=10, padB=24;
+
+  const vals = data.map(p=>p.v).filter(v=>v!=null);
+  if(!vals.length){ g.fillStyle='#8a988e'; g.font='13px -apple-system,Arial'; g.fillText('Sin datos para este periodo', 10, 40); return; }
+
+  let mn = Math.min(...vals), mx = Math.max(...vals);
+  if(mn===mx){ mx += 1; mn -= 1; }
+  const pd = (mx-mn)*0.12; mn -= pd; mx += pd;
+  const X = i => padL + (w-padL-padR) * (data.length<=1 ? 0 : i/(data.length-1));
+  const Y = v => padT + (h-padT-padB) * (1-(v-mn)/(mx-mn));
+
+  // rejilla y etiquetas Y
+  g.strokeStyle='#e9efea'; g.lineWidth=1; g.fillStyle='#8a988e'; g.font='10px -apple-system,Arial';
+  for(let k=0;k<=2;k++){
+    const yy = padT + (h-padT-padB)*k/2;
+    g.beginPath(); g.moveTo(padL,yy); g.lineTo(w-padR,yy); g.stroke();
+    g.fillText(String(r1(mx-(mx-mn)*k/2)), 3, yy+3);
+  }
+
+  // relleno suave
+  g.beginPath();
+  let started=false, firstX=0, lastX=0;
+  data.forEach((p,i)=>{ if(p.v==null){started=false;return;} const x=X(i),y=Y(p.v);
+    if(!started){ g.moveTo(x,y); started=true; firstX=x; } else g.lineTo(x,y); lastX=x; });
+  g.strokeStyle=m.color; g.lineWidth=2; g.lineJoin='round'; g.stroke();
+
+  // punto final
+  const lastIdx = data.length-1;
+  if(data[lastIdx] && data[lastIdx].v!=null){
+    g.fillStyle=m.color; g.beginPath(); g.arc(X(lastIdx), Y(data[lastIdx].v), 3, 0, 7); g.fill();
+  }
+
+  // etiquetas X (inicio · medio · fin)
+  g.fillStyle='#8a988e';
+  const lab = d => SEL.range==='24h' ? hhmm(d) : ddmm(d);
+  const idxs = [0, Math.floor((data.length-1)/2), data.length-1];
+  const aligns = ['left','center','right'];
+  idxs.forEach((i,k)=>{
+    if(!data[i]) return;
+    const t = lab(data[i].t);
+    const x = X(i);
+    g.textAlign = aligns[k];
+    g.fillText(t, Math.max(padL, Math.min(w-padR, x)), h-6);
+  });
+  g.textAlign='start';
+
+  const upd = (id,txt)=>{ const e=$(id); if(e) e.textContent=txt; };
+  upd('#chsub', m.label + (m.unit? ' ('+m.unit+')':'') + ' · ' + (SEL.range==='24h'?'últimas 24 h':'últimos 7 días'));
+  upd('#chmin', 'mín '+r1(mn+pd));
+  upd('#chmax', 'máx '+r1(mx-pd));
+  const curVal = (data.filter(p=>p.v!=null).slice(-1)[0]||{}).v;
+  upd('#chnow', curVal!=null ? ('ahora '+r1(curVal)+(m.unit?' '+m.unit:'')) : '—');
+}
+
+function bindCharts(){
+  document.querySelectorAll('.chip[data-m]').forEach(b=> b.onclick = ()=>{
+    SEL.metric = b.dataset.m;
+    document.querySelectorAll('.chip[data-m]').forEach(x=>x.classList.toggle('on', x.dataset.m===SEL.metric));
+    drawChart();
+  });
+  document.querySelectorAll('.chip[data-r]').forEach(b=> b.onclick = ()=>{
+    SEL.range = b.dataset.r;
+    document.querySelectorAll('.chip[data-r]').forEach(x=>x.classList.toggle('on', x.dataset.r===SEL.range));
+    drawChart();
+  });
+  window.addEventListener('resize', ()=>{ clearTimeout(window.__rz); window.__rz=setTimeout(drawChart,150); });
+}
+
+async function showStation(st){
+  STA = st;
+  out.innerHTML = '<div class="card">Cargando datos…</div>';
+  try{
+    CACHE.cur = await current(st.id);
+    out.innerHTML = card(st, CACHE.cur) + chartsCard();
+    bindCharts();
+    drawChart();
+    // gráficos en segundo plano
+    try{
+      const [d,w] = await Promise.all([dayObs(st.id), weekObs(st.id)]);
+      CACHE.day = d; CACHE.week = w; drawChart();
+    }catch(e){ /* gráficos opcionales */ }
+  }catch(e){ err('Error cargando la estación: '+e.message); }
+}
+
+async function loadNear(lat, lon){
+  out.innerHTML = '<div class="card">Consultando…</div>';
+  try{
+    const stations = await near(lat, lon);
+    if(!stations.length){ return err('No hay estaciones WU cerca de esas coordenadas.'); }
+    CACHE.cur = await current(stations[0].id);
+    out.innerHTML = card(stations[0], CACHE.cur) + listCard(stations) + chartsCard();
+    document.querySelectorAll('.st').forEach(el=> el.onclick = ()=>{
+      document.querySelectorAll('.st').forEach(x=>x.classList.remove('sel'));
+      el.classList.add('sel');
+      const s = stations.find(x=>x.id===el.dataset.id);
+      showStation(s);
+    });
+    STA = stations[0];
+    bindCharts();
+    drawChart();
+    try{
+      const [d,w] = await Promise.all([dayObs(stations[0].id), weekObs(stations[0].id)]);
+      CACHE.day = d; CACHE.week = w; drawChart();
+    }catch(e){}
+  }catch(e){ err('Error consultando: '+e.message); }
+}
+
+$('#gps').onclick = () => {
+  if(!navigator.geolocation) return err('Este navegador no soporta geolocalización.');
+  $('#gpstx').textContent = 'Obteniendo GPS…';
+  $('#gpsico').innerHTML = '<span class="spin"></span>';
+  navigator.geolocation.getCurrentPosition(
+    p =>{
+      $('#gpstx').textContent='Usar mi ubicación (GPS)'; $('#gpsico').textContent='📡';
+      $('#lat').value=p.coords.latitude.toFixed(5); $('#lon').value=p.coords.longitude.toFixed(5);
+      loadNear(p.coords.latitude, p.coords.longitude);
+    },
+    e =>{
+      $('#gpstx').textContent='Usar mi ubicación (GPS)'; $('#gpsico').textContent='📡';
+      err('GPS no disponible ('+e.message+'). Prueba por coordenadas manuales.');
+    },
+    {enableHighAccuracy:true, timeout:12000, maximumAge:60000}
+  );
+};
+
+$('#manual').onclick = () => {
+  const la = parseFloat($('#lat').value), lo = parseFloat($('#lon').value);
+  if(isNaN(la)||isNaN(lo)) return err('Introduce latitud y longitud válidas.');
+  loadNear(la, lo);
+};
+
+$('#byid').onclick = () => {
+  const id = ($('#sid').value||'').trim();
+  if(!id) return err('Escribe un ID de estación.');
+  showStation({id, name:'', distanceKm:null});
+};
+
+// banner "añadir a pantalla de inicio" solo en iOS sin estar ya instalada
+(function(){
+  const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const standalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+  if(isiOS && !standalone){
+    const b = $('#install');
+    b.style.display='flex';
+    $('#installx').onclick = ()=> b.style.display='none';
+    setTimeout(()=>{ b.style.display='none'; }, 20000);
+  }
+})();
+
+// arranque con ?lat=&lon= o ?station=
+(function(){
+  const q = new URLSearchParams(location.search);
+  if(q.get('station')) showStation({id:q.get('station'), name:'', distanceKm:null});
+  else if(q.get('lat') && q.get('lon')) loadNear(parseFloat(q.get('lat')), parseFloat(q.get('lon')));
+})();
+</script>
+</body>
+</html>
